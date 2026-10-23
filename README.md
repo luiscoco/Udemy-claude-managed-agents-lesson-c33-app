@@ -42,26 +42,83 @@ CLAUDE_MANAGED_ENVIRONMENT_ID=your_environment_id
 PORT=3033
 ```
 
-## How the application was developed
+## How the app was build
 
-The browser collects inputs; the Node host validates requests; the lesson implementation produces observable evidence. The architecture page walks through the real source with numbered steps, prerequisite configuration, source filenames and code excerpts.
+### 1. Validate a whole-cent budget raise
 
-### Lesson implementation
+A raise is admitted only for a budget pause, with a safe-integer new cap above observed consumption and within the local 500-cent limit.
 
-[src/lesson.ts](https://github.com/luiscoco/Udemy-claude-managed-agents-lesson-c33-app/blob/main/src/lesson.ts)
+Source: [src/lesson.ts](src/lesson.ts#L13) · selected statements
 
 ```typescript
-  async run(input) {
+const consumed = number(input, "consumedCents"),
+  next = number(input, "nextCents");
 
-const consumed=number(input,"consumedCents"),next=number(input,"nextCents");
-if(!flag(input,"pausedAtBudget")||!Number.isSafeInteger(next)||next<=consumed||next>500)return report("rejected","Require a budget pause and a whole-cent raise above consumption within the demo host cap",{},["Read current pause and cost evidence","Apply the explicit host spending limit"]);
-return report("passed","Prepared an approved budget replacement plan",{consumedCents:consumed,nextCents:next,request:{budget:{type:"limit",max_list_cost:{amount:String(next),currency:"USD"}}},applied:false},["Keep cents distinct from dollars","Do not resume by sending another prompt","Provider revalidates exact consumption at update"]);
-
-  }
-};
+if (
+  !flag(input, "pausedAtBudget") ||
+  !Number.isSafeInteger(next) ||
+  next <= consumed ||
+  next > 500
+)
+  return report(
+    "rejected",
+    "Require a budget pause and a whole-cent raise above consumption within the demo host cap",
+    {},
+    [
+      "Read current pause and cost evidence",
+      "Apply the explicit host spending limit",
+    ],
+  );
 ```
 
-Read the architecture page for the remaining source excerpts and explanations, including input handling and optional provider behavior. The diagram describes this application, rather than implying that an external integration has been implemented.
+### 2. Prepare a replacement budget without resending a prompt
+
+The amount is serialized as a string in the budget object. applied:false makes this a plan, not a provider update; a real adapter must recheck current consumption before applying it.
+
+Source: [src/lesson.ts](src/lesson.ts#L15)
+
+```typescript
+return report(
+  "passed",
+  "Prepared an approved budget replacement plan",
+  {
+    consumedCents: consumed,
+    nextCents: next,
+    request: {
+      budget: {
+        type: "limit",
+        max_list_cost: { amount: String(next), currency: "USD" },
+      },
+    },
+    applied: false,
+  },
+  [
+    "Keep cents distinct from dollars",
+    "Do not resume by sending another prompt",
+    "Provider revalidates exact consumption at update",
+  ],
+);
+```
+
+### Check your understanding
+
+Run **Plan an authorized raise** in the application. Compare the result with these scenario expectations:
+
+```json
+{
+  "input": {
+    "consumedCents": 50,
+    "nextCents": 75,
+    "pausedAtBudget": true
+  },
+  "expectedOutcome": "passed",
+  "checkEvidence": {
+    "nextCents": 75
+  }
+}
+```
+
+Then try **Reject a cap below consumption**. Its expected outcome is `rejected`; identify the condition or evidence field that explains the difference.
 
 ## Validation
 
