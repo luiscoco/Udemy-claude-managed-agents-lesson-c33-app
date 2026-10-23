@@ -1,0 +1,29 @@
+{
+  "source": "live-provider-commentary",
+  "sessionId": "sesn_01RFa8gARotbSXNS8HpPeZVE",
+  "answer": "This local experiment is labeled \"Usage and Session Budgets\" and describes a simulated budget-replacement scenario where a consumed amount of 50 cents would be followed by a next budget of 75 cents. It outlines three instructional steps: keep cents and dollars distinct, do not resume a session by sending another prompt, and let the provider revalidate exact consumption at update time. The outcome is marked \"passed\" but the budget request was not applied, meaning this is illustrative data only.",
+  "stopReason": "end_turn",
+  "eventTypes": [
+    "session.status_running",
+    "session.thread_status_running",
+    "user.message",
+    "span.model_request_start",
+    "agent.thinking",
+    "agent.message",
+    "span.model_request_end",
+    "session.thread_status_idle",
+    "session.usage",
+    "session.status_idle"
+  ],
+  "requestUsage": [
+    {
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "input_tokens": 604,
+      "output_tokens": 138,
+      "speed": "standard"
+    }
+  ],
+  "experimentHash": "867e43d7f768d1a736eadbf294af0144a22eb8828c0b7091ba90205f065dd803",
+  "scope": "A real text-only model response about the local experiment. External integrations and the experiment's correctness are not certified by this response."
+}

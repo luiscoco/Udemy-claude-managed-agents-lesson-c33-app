@@ -1,0 +1,34 @@
+import Anthropic from "@anthropic-ai/sdk";
+import type { BetaManagedAgentsSessionEvent as Event } from "@anthropic-ai/sdk/resources/beta/sessions/events";
+const cents = (value:string) => { if (!/^[1-9][0-9]{0,11}$/.test(value)) throw new Error("Positive whole cents string required"); return BigInt(value); };
+export function createBudget(amount:string) {
+  cents(amount); return { type:"limit" as const,max_list_cost:{amount,currency:"USD" as const} };
+}
+export function makeBudgetObserver(sessionId:string) {
+  const seen=new Set<string>();
+  const state={sessionId,lastUsage:null as Extract<Event,{type:"session.usage"}>|null,lastStopReason:null as string|null};
+  return {state,ingest(event:Event) {
+    if (seen.has(event.id)) return; seen.add(event.id);
+    if (event.type==="session.usage") state.lastUsage=event; // REPLACE cumulative snapshot
+    if (event.type==="session.status_idle") state.lastStopReason=event.stop_reason.type;
+    if (event.type==="session.status_running") state.lastStopReason=null;
+  }};
+}
+export function planBudgetRaise(observed:{sessionId:string;hasBudget:boolean;pausedAtBudget:boolean;reportedCents:string|null},nextCents:string,hostMaxCents="500") {
+  const next=cents(nextCents),max=cents(hostMaxCents);
+  if (!observed.hasBudget || !observed.pausedAtBudget || observed.reportedCents===null || !/^[0-9]+$/.test(observed.reportedCents))
+    throw new Error("Known current budget-pause evidence required");
+  if (next<=BigInt(observed.reportedCents) || next>max) throw new Error("Raise must exceed reported cost within host limit");
+  return {sessionId:observed.sessionId,budget:createBudget(nextCents)};
+}
+export async function applyAuthorizedRaise(client:Anthropic,plan:ReturnType<typeof planBudgetRaise>) {
+  return client.beta.sessions.update(plan.sessionId,{budget:plan.budget},{maxRetries:0,timeout:10000});
+}
+// Ordered persisted session events only; previews and duplicate snapshots must not be summed.
+// A caller supplies current authenticated single-owner budget/status/usage evidence to the planner.
+// 500-cent raise maximum is DEMO HOST POLICY, not a provider limit. No cap removal helper is exposed.
+// Whole-cent reported cost is rounded; at least one cent above it avoids an equal-rounded-cost raise.
+// Provider still validates exact consumption at update time; concurrent work/state can change.
+// A budget gates NEW model requests. In-flight model/tool work can finish beyond the cap.
+// Ordinary budget-paused work resumes after an accepted raise; separately interrupted workflow runs
+// have separate continuation rules. A user.message does not itself resume budget-paused work.
